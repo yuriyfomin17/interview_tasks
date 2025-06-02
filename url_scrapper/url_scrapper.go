@@ -2,7 +2,6 @@ package url_scrapper
 
 import (
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -11,6 +10,7 @@ var httpClient = &http.Client{
 }
 
 func UrlScrapper() map[string]string {
+	numWorkers := 3
 	var urls = []string{
 		"http://ozon.ru",
 		"https://ozon.ru",
@@ -21,31 +21,48 @@ func UrlScrapper() map[string]string {
 		"http://ya.ru",
 		"http://ееее",
 	}
+	jobs, outChannel := make(chan string, len(urls)), make(chan string, 2*len(urls))
+	go func() {
+		for _, url := range urls {
+			jobs <- url
+		}
+		close(jobs)
+	}()
 	urlMapResponses := make(map[string]string)
-	wg := &sync.WaitGroup{}
-	for _, url := range urls {
-		wg.Add(1)
+	for i := 0; i < numWorkers; i++ {
 		go func() {
-			defer wg.Done()
-			resp, err := httpClient.Get(url)
-			if err != nil {
-				urlMapResponses[url] = url + " url - not ok"
-				return
+			for url := range jobs {
+				workerFunc(url, outChannel)
 			}
-			defer func() {
-				currentBodyErr := resp.Body.Close()
-				if currentBodyErr != nil {
-					urlMapResponses[url] = url + " url - not ok"
-					return
-				}
-			}()
-			if resp.StatusCode != 200 {
-				urlMapResponses[url] = url + " url - not ok"
-				return
-			}
-			urlMapResponses[url] = url + " url - ok"
 		}()
 	}
-	wg.Wait()
+	for i := 0; i < len(urls); i++ {
+		urlMapResponses[<-outChannel] = <-outChannel
+	}
+	close(outChannel)
 	return urlMapResponses
+}
+
+func workerFunc(url string, outChan chan<- string) {
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		outChan <- url
+		outChan <- url + " url - not ok"
+		return
+	}
+	defer func() {
+		currentBodyErr := resp.Body.Close()
+		if currentBodyErr != nil {
+			outChan <- url
+			outChan <- url + " url - not ok"
+			return
+		}
+	}()
+	if resp.StatusCode != 200 {
+		outChan <- url
+		outChan <- url + " url - not ok"
+		return
+	}
+	outChan <- url
+	outChan <- url + " url - ok"
 }
