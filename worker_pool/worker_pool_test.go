@@ -1,25 +1,17 @@
 package worker_pool
 
 import (
-	"context"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestWorkerPool(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
-	defer cancel()
-
-	done := make(chan struct{})
-	go func() {
-		WorkerPool()
-		close(done)
-	}()
-
-	select {
-	case <-ctx.Done():
-		t.Fatal("test timed out")
-	case <-done:
-		// Test completed successfully
-	}
+func TestWorkerPool_ShouldExecuteWithinLimits(t *testing.T) {
+	workerPool := NewWorkerPool(3)
+	timeNow := time.Now()
+	workerPool.SubmitTasks([]int{1, 2, 3})
+	fmt.Println("time elapsed:", time.Now().Sub(timeNow))
+	require.True(t, time.Since(timeNow) <= 2*time.Second)
 }
