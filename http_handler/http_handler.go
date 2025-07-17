@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
-	"interview_tasks/custom_cache"
 	"log"
 	"net/http"
 	"os"
@@ -28,7 +27,7 @@ type HttpHandler struct {
 // 4. count number of requests
 func StartServer() {
 	router := mux.NewRouter()
-	customCache := custom_cache.NewCustomCache()
+	customCache := NewCustomCache()
 	httpServer := newHttpHandler(customCache)
 
 	router = mux.NewRouter()
